@@ -1,6 +1,7 @@
 import pytest
 import re
 
+from django.contrib.sites.models import Site
 from django.core import mail
 from django.core.urlresolvers import reverse
 
@@ -8,52 +9,77 @@ from subscription_engine.mail import send_email, render_message
 from subscription_engine.models import Subscription
 from subscription_engine.tests.fixtures.models import TestUser
 
-@pytest.mark.xfail
-def test_user_can_unsubscribe():
-    pass
+def create_email_sub_user():
+    """
+     Helper function to create test email, sub and user
+    """
+    email = mail.EmailMessage('Subject', 'Body', 'from@example.com', ['to@example.com'])
+    sub = Subscription(name='Test')
+    sub.save()
 
-@pytest.mark.xfail
+    user = TestUser(name='TestUser', subscription=sub)
+    user.save()
+
+    return (email, sub, user)
+
+@pytest.mark.django_db
+def test_use_http():
+    """
+     Check to see if the unsubscribe_url can be set to http
+    """
+    email, sub, user = create_email_sub_user()
+    send_email(email, sub, user, subscription_view_name='unsubscribe', unsubscribe_template='unsubscribe.html', secure=False)
+    messages = mail.outbox
+
+    email_url = re.search("(?P<url>http?://[^\s]+)", messages[0].body).group('url')
+
+    assert email_url.split("://example")[0] == 'http'
+
+@pytest.mark.django_db
+def test_use_https():
+    """
+     Check to see if the unsubscribe_url can be set to http
+    """
+    email, sub, user = create_email_sub_user()
+    send_email(email, sub, user, subscription_view_name='unsubscribe', unsubscribe_template='unsubscribe.html')
+    messages = mail.outbox
+
+    email_url = re.search("(?P<url>https?://[^\s]+)", messages[0].body).group('url')
+
+    assert email_url.split("://example")[0] == 'https'
+
 @pytest.mark.django_db
 def test_user_is_sent_to_unsubscribed_page(client):
     """
       User is sent to a unsubscribe confirmation page
      """
-    email = mail.EmailMessage('Subject', 'Body', 'from@example.com', ['to@example.com'])
-    sub = Subscription(name='Test')
-    sub.save()
-
-    user = TestUser(name='TestUser', subscription=sub)
-    user.save()
-
+    email, sub, user = create_email_sub_user()
     send_email(email, sub, user, subscription_view_name='unsubscribe', unsubscribe_template='unsubscribe.html')
-
     messages = mail.outbox
 
-    print messages[0].body
     email_url = re.search("(?P<url>https?://[^\s]+)", messages[0].body).group('url')
-
-    location = email_url.split("http://example.com")[1]
-
+    location = email_url.split("https://example.com")[1]
     response = client.get(location)
-    assert reverse('unsubscribe_confirmation') in response.get('location')
+
+    assert "You have been successfully unsubscribed" in response.content
+
+@pytest.mark.xfail
+def test_user_can_unsubscribe():
+    pass
 
 @pytest.mark.django_db
 def test_send_email(email_mem_backend):
     """
-     Test that send_email sends an email witht the unsubscribe template filled out
+     Test that send_email sends an email with the unsubscribe template filled out
     """
-    email = mail.EmailMessage('Subject', 'Body', 'from@example.com', ['to@example.com'])
-    sub = Subscription(name='Test')
-    sub.save()
-
-    user = TestUser(name='TestUser', subscription=sub)
-    user.save()
-
+    email, sub, user = create_email_sub_user()
     send_email(email, sub, user, subscription_view_name='unsubscribe', unsubscribe_template='unsubscribe.html')
-
     messages = mail.outbox
 
-    assert "To unsubscribe from this email list " + reverse('unsubscribe', args=[user.pk, sub.token]) in messages[0].body
+    unsubscribe_path = reverse('unsubscribe', args=[user.pk, sub.token])
+    unsubscribe_url = "https://{site}{path}".format(site=Site.objects.get_current(), path=unsubscribe_path)
+
+    assert "To unsubscribe from this email list " +  unsubscribe_url in messages[0].body
 
 def test_renders_message_body():
     """

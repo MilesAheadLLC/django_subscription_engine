@@ -19,8 +19,11 @@ settings.configure(
                   'django.contrib.contenttypes',
                   'django.contrib.sessions',
                   'django.contrib.admin',
+                  'django.contrib.sites',
                   'subscription_engine',
                   'subscription_engine.tests.fixtures',
-                  ))
+                  ),
+    SITE_ID=1
+)
 
 pytest.main(test_command)
