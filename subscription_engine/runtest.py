@@ -1,5 +1,5 @@
 import pytest
-import os, sys
+import os
 from django.conf import settings
 
 DIRNAME = os.path.dirname(__file__)
