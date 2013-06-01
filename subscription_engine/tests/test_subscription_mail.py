@@ -23,7 +23,7 @@ def create_email_sub_user():
     return (email, sub, user)
 
 @pytest.mark.django_db
-def test_use_http():
+def test_use_http(email_mem_backend):
     """
      Check to see if the unsubscribe_url can be set to http
     """
@@ -36,7 +36,7 @@ def test_use_http():
     assert email_url.split("://example")[0] == 'http'
 
 @pytest.mark.django_db
-def test_use_https():
+def test_use_https(email_mem_backend):
     """
      Check to see if the unsubscribe_url can be set to http
     """
@@ -49,7 +49,7 @@ def test_use_https():
     assert email_url.split("://example")[0] == 'https'
 
 @pytest.mark.django_db
-def test_user_is_sent_to_unsubscribed_page(client):
+def test_user_is_sent_to_unsubscribed_page(client,email_mem_backend):
     """
       User is sent to a unsubscribe confirmation page
      """
@@ -63,9 +63,34 @@ def test_user_is_sent_to_unsubscribed_page(client):
 
     assert "You have been successfully unsubscribed" in response.content
 
-@pytest.mark.xfail
-def test_user_can_unsubscribe():
-    pass
+@pytest.mark.django_db
+def test_user_can_unsubscribe(client,email_mem_backend):
+    """
+     User is unsubscribed from subscription
+    """
+    email, sub, user = create_email_sub_user()
+    send_email(email, sub, user, subscription_view_name='unsubscribe', unsubscribe_template='unsubscribe.html')
+    messages = mail.outbox
+
+    email_url = re.search("(?P<url>https?://[^\s]+)", messages[0].body).group('url')
+    location = email_url.split("https://example.com")[1]
+    response = client.get(location)
+
+    # Get new value for sub
+    sub = Subscription.objects.get(pk=sub.pk)
+
+    assert not sub.active
+
+
+@pytest.mark.django_db
+def test_user_receives_error_page_when_subscription_not_found(client):
+    """
+     If the link is incorrect the user receives and error page
+    """
+    response = client.get("/1-24928592045/")
+
+    assert "This didn't work correctly" in response.content
+
 
 @pytest.mark.django_db
 def test_send_email(email_mem_backend):
