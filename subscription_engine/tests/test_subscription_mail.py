@@ -81,7 +81,6 @@ def test_user_can_unsubscribe(client,email_mem_backend):
 
     assert not sub.active
 
-
 @pytest.mark.django_db
 def test_user_receives_error_page_when_subscription_not_found(client):
     """
@@ -90,7 +89,6 @@ def test_user_receives_error_page_when_subscription_not_found(client):
     response = client.get("/1-24928592045/")
 
     assert "This didn't work correctly" in response.content
-
 
 @pytest.mark.django_db
 def test_send_email(email_mem_backend):
