@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.views.generic import View
 from django.shortcuts import render_to_response
 
-from subscription_engine.models import Subscription
+from subscription_engine.models import SubscriptionAssignment
 
 class UnSubscribeView(View):
     template_name='unsubscribe_confirmation.html'
@@ -10,7 +10,7 @@ class UnSubscribeView(View):
 
     def get(self, request, *args, **kwargs):
         try:
-            sub = Subscription.objects.get(token=kwargs['token'])
+            sub = SubscriptionAssignment.objects.get(token=kwargs['token'])
             sub.active = False
             sub.save()
         except ObjectDoesNotExist:

@@ -6,7 +6,7 @@ from django.core import mail
 from django.core.urlresolvers import reverse
 
 from subscription_engine.mail import send_email, render_message
-from subscription_engine.models import Subscription
+from subscription_engine.models import Subscription, SubscriptionAssignment
 from subscription_engine.tests.fixtures.models import TestUser
 
 def create_email_sub_user():
@@ -14,13 +14,17 @@ def create_email_sub_user():
      Helper function to create test email, sub and user
     """
     email = mail.EmailMessage('Subject', 'Body', 'from@example.com', ['to@example.com'])
-    sub = Subscription(name='Test')
-    sub.save()
 
-    user = TestUser(name='TestUser', subscription=sub)
+    user = TestUser(name='Test')
     user.save()
 
-    return (email, sub, user)
+    sub = Subscription(name='Sub')
+    sub.save()
+
+    usersub = SubscriptionAssignment(content_object=user, subscription=sub)
+    usersub.save()
+
+    return (email, usersub, user)
 
 @pytest.mark.django_db
 def test_use_http(email_mem_backend):
@@ -53,8 +57,8 @@ def test_user_is_sent_to_unsubscribed_page(client,email_mem_backend):
     """
       User is sent to a unsubscribe confirmation page
      """
-    email, sub, user = create_email_sub_user()
-    send_email(email, sub, user, subscription_view_name='unsubscribe', unsubscribe_template='unsubscribe.html')
+    email, usersub, user = create_email_sub_user()
+    send_email(email, usersub, user, subscription_view_name='unsubscribe', unsubscribe_template='unsubscribe.html')
     messages = mail.outbox
 
     email_url = re.search("(?P<url>https?://[^\s]+)", messages[0].body).group('url')
@@ -77,7 +81,7 @@ def test_user_can_unsubscribe(client,email_mem_backend):
     response = client.get(location)
 
     # Get new value for sub
-    sub = Subscription.objects.get(pk=sub.pk)
+    sub = SubscriptionAssignment.objects.get(pk=sub.pk)
 
     assert not sub.active
 
@@ -95,11 +99,11 @@ def test_send_email(email_mem_backend):
     """
      Test that send_email sends an email with the unsubscribe template filled out
     """
-    email, sub, user = create_email_sub_user()
-    send_email(email, sub, user, subscription_view_name='unsubscribe', unsubscribe_template='unsubscribe.html')
+    email, usersub, user = create_email_sub_user()
+    send_email(email, usersub, user, subscription_view_name='unsubscribe', unsubscribe_template='unsubscribe.html')
     messages = mail.outbox
 
-    unsubscribe_path = reverse('unsubscribe', args=[user.pk, sub.token])
+    unsubscribe_path = reverse('unsubscribe', args=[user.pk, usersub.token])
     unsubscribe_url = "https://{site}{path}".format(site=Site.objects.get_current(), path=unsubscribe_path)
 
     assert "To unsubscribe from this email list " +  unsubscribe_url in messages[0].body
