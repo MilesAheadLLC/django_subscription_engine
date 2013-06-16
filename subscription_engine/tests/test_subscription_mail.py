@@ -5,7 +5,7 @@ from django.contrib.sites.models import Site
 from django.core import mail
 from django.core.urlresolvers import reverse
 
-from subscription_engine.mail import send_email, render_message
+from subscription_engine.mail import send_email, render_message, get_unsubscribe_url
 from subscription_engine.models import Subscription, SubscriptionAssignment
 from subscription_engine.tests.fixtures.models import TestUser
 
@@ -120,4 +120,14 @@ def test_renders_message_body():
     assert body in message
     assert url in message
 
+@pytest.mark.django_db
+def test_get_unsubcribe_url():
+    """
+     Tests that get_unsubscribe_url returns the proper url
+    """
+    email, usersub, user = create_email_sub_user()
+    url = get_unsubscribe_url(usersub, user)
+    unsubscribe_path = reverse('unsubscribe', args=[user.pk, usersub.token])
+    unsubscribe_url = "https://{site}{path}".format(site=Site.objects.get_current(), path=unsubscribe_path)
 
+    assert url == unsubscribe_url
