@@ -1,5 +1,7 @@
 # Django Subscrption Engine
 
+As far as I know this works and I needed it for another project that was cancelled. Ata minimum it should serve as an example of how to build a custom mailer for django if you need one. If there is some interest I'll clean it up and add some docs.
+
 The Django Subscription Engine is intended to provide an API to easily allow you to send customized emails with an
 unsubscribe link.  It should have enough customization to allow it work with virtually any email provider.
 
